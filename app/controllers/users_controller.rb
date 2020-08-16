@@ -1,52 +1,53 @@
 class UsersController < ApplicationController
-  get '/users/:slug' do
-    @user = User.find_by_slug(params[:slug])
-    erb :'users/show'
-  end
 
+  # load signup page
   get '/signup' do
-    if !logged_in?
-      erb :'users/create_user', locals: {message: "Please sign up before you sign in"}
+    if Helpers.logged_in?(session)
+      redirect '/tweets'
     else
-      redirect to '/tweets'
+      erb :'/users/create_user'
     end
   end
 
+  # create the user and save it to the database
+  # also log the user in and add the user_id to the sessions hash
   post '/signup' do
-    if params[:username] == "" || params[:email] == "" || params[:password] == ""
-      redirect to '/signup'
-    else
-      @user = User.new(:username => params[:username], :email => params[:email], :password => params[:password])
-      @user.save
+    if params.none? {|key, value| value == ""}
+      @user = User.create(username: params[:username], email: params[:email], password: params[:password])
       session[:user_id] = @user.id
-      redirect to '/tweets'
+      redirect '/tweets'
+    else
+      flash[:error] = "Please complete all the information to create your account"
+      redirect '/signup'
     end
   end
 
+  # if the user isn't already logged in, show login page
   get '/login' do
-    if !logged_in?
-      erb :'users/login'
+    if !Helpers.logged_in?(session)
+      erb :'/users/login'
     else
-      redirect to '/tweets'
+      redirect '/tweets'
     end
   end
 
   post '/login' do
-    user = User.find_by(:username => params[:username])
-    if user && user.authenticate(params[:password])
-      session[:user_id] = user.id
-      redirect to "/tweets"
+    @user = User.find_by(username: params[:username])
+      if @user && @user.authenticate(params[:password])
+        session[:user_id] = @user.id
+        redirect '/tweets'
     else
-      redirect to '/signup'
+      flash[:error] = "Login error. Please try again or sign up for a Fwitter account."
+      redirect '/login'
     end
   end
 
+  # clear session hash and redirect to /login
+  # redirects a user to the index page if the user tries to access /logout while not logged in
   get '/logout' do
-    if logged_in?
-      session.destroy
-      redirect to '/login'
-    else
-      redirect to '/'
-    end
+    session.clear
+    flash[:message] = "See ya later, Alligator!"
+    redirect '/login'
   end
+
 end
